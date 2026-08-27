@@ -7,7 +7,9 @@ page. Written testimony is ordinary prose that wraps normally. Detect which
 we have and normalise accordingly; get this wrong and either speaker labels
 break apart or real paragraphs get welded together.
 """
-import re, statistics, sys
+import os, re, statistics, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 FOOTER = re.compile(r'World\s*Wide\s*Dictation.*?WorldWideDictation\.com', re.I | re.S)
 PHONE = re.compile(r'Phone:\s*\d{3}[-.]\d{3}[-.]\d{4}.*?Fax:[^\n]*', re.I | re.S)
@@ -66,6 +68,12 @@ def clean_page(raw):
 
 def extract(path):
     import pypdf
+    try:
+        from repair import repair, load_words
+        words = load_words()
+    except Exception:
+        repair = None
+        words = None
     reader = pypdf.PdfReader(path)
     pages = []
     for p in reader.pages:
@@ -73,7 +81,10 @@ def extract(path):
             raw = p.extract_text() or ''
         except Exception:
             raw = ''
-        pages.append(clean_page(raw))
+        page = clean_page(raw)
+        if repair:
+            page = repair(page, words=words)
+        pages.append(page)
     return pages
 
 

@@ -6,7 +6,8 @@ const state = {
   meta: null, hearings: null,
   shards: new Map(), blocks: new Map(),
   q: '', exact: false, parsed: null, expansion: [], missing: [],
-  filters: { role: new Set(), committee: '', from: '', to: '', kind: '' },
+  sort: 'relevance',
+  filters: { role: new Set(), topic: new Set(), committee: '', from: '', to: '', kind: '' },
   results: [], shown: 0, seq: 0,
 };
 
@@ -45,11 +46,11 @@ function tokenize(s) {
    after:2025-01-01 / before:2026-06-30
    Bare words are all required. OR between two words makes either enough. */
 
-const FIELD = /^(speaker|role|committee|after|before|since|until)\s*:\s*(.+)$/i;
+const FIELD = /^(speaker|role|committee|topic|after|before|since|until)\s*:\s*(.+)$/i;
 const ROLES = ['council', 'administration', 'public', 'written', 'staff', 'unidentified'];
 
 function parseQuery(q) {
-  const clauses = [], fields = { speaker: [], role: [], committee: [], after: '', before: '' };
+  const clauses = [], fields = { speaker: [], role: [], committee: [], topic: [], after: '', before: '' };
   const re = /(-)?"([^"]*)"|(-)?(\S+)/g;
   let m;
   const raw = [];
@@ -68,6 +69,7 @@ function parseQuery(q) {
         if (key === 'speaker') fields.speaker.push(...tokenize(val));
         else if (key === 'role') { const v = val.toLowerCase(); if (ROLES.includes(v)) fields.role.push(v); }
         else if (key === 'committee') fields.committee.push(val.toLowerCase());
+        else if (key === 'topic') fields.topic.push(val.toLowerCase().replace(/\s+/g, '-'));
         else if (key === 'after' || key === 'since') fields.after = val;
         else if (key === 'before' || key === 'until') fields.before = val;
         continue;
@@ -310,6 +312,16 @@ async function runSearch(q) {
     positive.push({ kind: 'term', alts: [{ ...d, term: w, weight: 0, how: 'speaker' }],
                     cost: d.df, term: w, field: true });
   }
+  const wantTopics = [...new Set([...state.filters.topic, ...parsed.fields.topic])];
+  if (wantTopics.length) {
+    const alts = [];
+    for (const t of wantTopics) {
+      const d = await postingsFor('zztop_' + t);
+      if (d) alts.push({ ...d, term: t, weight: 0, how: 'topic' });
+    }
+    if (!alts.length) return [];
+    positive.push({ kind: 'term', alts, cost: alts.reduce((n, a) => n + a.df, 0), field: true });
+  }
   if (parsed.fields.role.length) {
     const alts = [];
     for (const r of parsed.fields.role) {
@@ -528,6 +540,45 @@ function fmtDate(d) {
   return `${M} ${dd}, ${y}`;
 }
 
+/* ---------- topics ---------- */
+function slugify(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+function setTopic(slug, exclusive) {
+  if (exclusive) state.filters.topic = new Set([slug]);
+  else state.filters.topic.has(slug) ? state.filters.topic.delete(slug)
+                                     : state.filters.topic.add(slug);
+  syncTopicChips();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  doSearch();
+}
+
+function syncTopicChips() {
+  document.querySelectorAll('[data-topic]').forEach(b =>
+    b.setAttribute('aria-pressed', String(state.filters.topic.has(b.dataset.topic))));
+  const n = state.filters.topic.size;
+  const clr = $('#topic-clear');
+  if (clr) clr.hidden = n === 0;
+}
+
+function renderTopics(meta) {
+  const box = $('#topics');
+  box.innerHTML = '';
+  (meta.topics || []).forEach(([name, count]) => {
+    const b = el('button', 'chip', name);
+    b.dataset.topic = slugify(name);
+    b.setAttribute('aria-pressed', 'false');
+    b.title = `${count.toLocaleString()} hearings`;
+    b.appendChild(el('i', 'tcount', count.toLocaleString()));
+    b.onclick = () => setTopic(b.dataset.topic, false);
+    box.appendChild(b);
+  });
+  const clr = el('button', 'chip', 'All topics');
+  clr.id = 'topic-clear';
+  clr.hidden = true;
+  clr.onclick = () => { state.filters.topic.clear(); syncTopicChips(); doSearch(); };
+  box.appendChild(clr);
+}
+
 /* ---------- result list ---------- */
 let queryTerms = [];
 
@@ -584,10 +635,26 @@ async function render(reset) {
 function hearingHead(h) {
   const d = el('div', 'hhead');
   const a = el('div', 'hh-left');
-  a.appendChild(el('b', null, h.committees.join(' · ')));
+  a.appendChild(el('b', null, h.subject || h.committees.join(' · ')));
   const meta = el('span', 'meta');
-  meta.textContent = fmtDate(h.date) + (h.stated ? ' · Stated meeting' : '');
+  const items = (h.subjects || []).length;
+  meta.textContent = fmtDate(h.date) +
+    (h.subject ? ' · ' + h.committees.join(' · ') : '') +
+    (h.stated ? ' · Stated meeting' : '') +
+    (!h.subject && items > 2 ? ` · ${items} items on the agenda` : '');
   a.appendChild(meta);
+  if (h.topics && h.topics.length) {
+    const tw = el('span', 'topics');
+    h.topics.forEach(t => {
+      const b = el('button', 'tchip', t);
+      b.onclick = e => {
+        e.stopPropagation();
+        setTopic(slugify(t), true);
+      };
+      tw.appendChild(b);
+    });
+    a.appendChild(tw);
+  }
   d.appendChild(a);
   const links = el('div', 'hh-right');
   h.docs.slice(0, 4).forEach(doc => {
@@ -696,8 +763,10 @@ function renderBrowse() {
     if (f.to && h.date > f.to) return false;
     if (f.kind === 'committee' && h.stated) return false;
     if (f.kind === 'stated' && !h.stated) return false;
+    if (f.topic.size && !(h.topics || []).some(t => f.topic.has(slugify(t)))) return false;
     return true;
   });
+  if (state.sort === 'oldest') hs.reverse();
   $('#count').textContent = `${hs.length.toLocaleString()} ${hs.length === 1 ? 'hearing' : 'hearings'}`;
   $('#more').hidden = true;
   $('#export').hidden = true;
@@ -887,11 +956,19 @@ async function doSearch() {
   if (mine !== searchToken) return;
 
   // keep hearings together, newest first, best passage first within a hearing
+  // Results stay grouped by hearing whichever way they are sorted, so an
+  // exchange never appears stranded from the hearing it came from.
   const order = new Map();
   kept.forEach(h => { const b = order.get(h.h); if (!b || h.score > b) order.set(h.h, h.score); });
-  kept.sort((a, b) => (order.get(b.h) - order.get(a.h)) ||
-                      (a.hi - b.hi) ||
-                      (b.score - a.score));
+  if (state.sort === 'newest') {
+    kept.sort((a, b) => (a.hi - b.hi) || (b.score - a.score));
+  } else if (state.sort === 'oldest') {
+    kept.sort((a, b) => (b.hi - a.hi) || (b.score - a.score));
+  } else {
+    kept.sort((a, b) => (order.get(b.h) - order.get(a.h)) ||
+                        (a.hi - b.hi) ||
+                        (b.score - a.score));
+  }
 
   state.results = kept;
   $('#results').dataset.lastH = '';
@@ -909,6 +986,8 @@ function syncUrl() {
   if (f.kind) p.set('kind', f.kind);
   if (f.role.size) p.set('role', [...f.role].join(','));
   if (state.exact) p.set('exact', '1');
+  if (state.filters.topic.size) p.set('topic', [...state.filters.topic].join(','));
+  if (state.sort !== 'relevance') p.set('sort', state.sort);
   const s = p.toString();
   history.replaceState(null, '', s ? '?' + s : location.pathname);
 }
@@ -922,6 +1001,8 @@ function readUrl() {
   state.filters.kind = p.get('kind') || '';
   (p.get('role') || '').split(',').filter(Boolean).forEach(r => state.filters.role.add(r));
   state.exact = p.get('exact') === '1';
+  (p.get('topic') || '').split(',').filter(Boolean).forEach(t => state.filters.topic.add(t));
+  state.sort = p.get('sort') || 'relevance';
 }
 
 async function init() {
@@ -973,8 +1054,14 @@ async function init() {
       x.setAttribute('aria-pressed', state.filters.kind === x.dataset.kind));
     refilter();
   });
+  renderTopics(meta);
+  syncTopicChips();
+  const sortSel = $('#sort');
+  sortSel.value = state.sort;
+  sortSel.onchange = () => { state.sort = sortSel.value; doSearch(); };
   $('#clear').onclick = () => {
-    state.filters = { role: new Set(), committee: '', from: '', to: '', kind: '' };
+    state.filters = { role: new Set(), topic: new Set(), committee: '', from: '', to: '', kind: '' };
+    syncTopicChips();
     sel.value = ''; $('#from').value = ''; $('#to').value = '';
     document.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false'));
     refilter();

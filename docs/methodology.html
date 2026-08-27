@@ -114,6 +114,42 @@
       witness's name is taken from the heading. Where a packet carries no such headings, it is left
       whole rather than cut at guessed boundaries.</p>
 
+    <h3>Topics</h3>
+    <p>The Council files its work by committee, and committees do not map onto subjects. Housing
+      comes up in Housing and Buildings, in Finance, in Land Use and in General Welfare; a policing
+      question can surface at a stated meeting. So each hearing also carries one or more topics,
+      assigned from two things the record already states: the committee that sat, and the subject
+      line of what was on the agenda that day — <i>Oversight – Implementation of the Pied-à-Terre
+      Tax</i>, or the plain-language description of a bill.</p>
+    <p>The committee half of that is deterministic: a fixed table maps each committee to a topic.
+      The subject half is a set of keyword rules that can only ever <i>add</i> a topic, never remove
+      one, which is why a hearing often sits under several. <b>This grouping is ours, not the
+      Council's.</b> It is a way of finding things, not an official classification, and it will put
+      the occasional hearing in a place you would not have chosen. The committee filter, underneath
+      the topics, is the Council's own filing and is exact.</p>
+    <p>Agenda subjects come from the meeting's own item list. Where a hearing held an oversight
+      item, that item names the hearing and is shown as its title. Where a hearing worked through a
+      dozen bills, no title is shown at all — picking one item out of twelve reads as the hearing's
+      subject when it is only whatever sorted first.</p>
+
+    <h3>Spelling: what was corrected, and what was not</h3>
+    <p>Two different kinds of error turn up here, and they are treated differently.</p>
+    <p><b>Our errors are corrected.</b> Pulling text out of a PDF introduces damage that has nothing
+      to do with what anyone said: ligature glyphs, so <i>benefits</i> arrives as <i>beneﬁts</i> and
+      cannot be searched for; a colon standing in for a <i>ti</i> pair, so <i>information</i> becomes
+      <i>informa:on</i>; soft hyphens left inside words. Every one of those repairs is checked
+      against a word list before it is applied — a colon only becomes <i>ti</i> where the result is
+      a real word, which is why <code>about:blank</code> is left alone. A couple of dozen documents
+      extracted with no word spaces at all, running whole paragraphs together; their spacing was
+      rebuilt by segmenting against the vocabulary of the rest of the corpus, and any run that could
+      not be resolved was left exactly as it was rather than guessed at.</p>
+    <p><b>The record's errors are not corrected.</b> Stenographers misspell names, witnesses make
+      typos, and those stand as written. The one exception is committee <i>labels</i>: a cover page
+      typed <i>Committee on Conumser and Worker Protection</i> would otherwise appear as a separate
+      committee in the filters, so committee names are snapped to the Council's own published list
+      where the match is near-exact. That corrects a label against an authoritative source; it never
+      touches the transcript text.</p>
+
     <h3>Who is speaking</h3>
     <p>Roles are inferred from the title in the speaker label, not from any roster: <i>Council
       member</i> and <i>Chairperson</i> and <i>Speaker</i> mean a member of the Council;
@@ -163,7 +199,10 @@
     <ul>
       <li><b>The stenographer's spellings.</b> Names in transcripts are frequently misspelled, and
         they are reproduced here as written. Searching for a witness by name will miss them if the
-        transcript spelled it differently.</li>
+        transcript spelled it differently — though the loose matching will often bridge the gap.</li>
+      <li><b>Topic assignment.</b> Keyword rules are blunt. A hearing that mentions a subject in
+        passing can pick up its topic, and a hearing that discusses one without using the obvious
+        words can miss it. Use topics to find your way in, then search.</li>
       <li><b>Speaker segmentation.</b> A label the stenographer typed inconsistently, or a colon in
         the middle of a sentence, will occasionally split or merge turns wrongly.</li>
       <li><b>Testimony packets.</b> Splitting concatenated packets into individual submissions is a

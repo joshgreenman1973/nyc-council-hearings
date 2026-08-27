@@ -27,6 +27,8 @@ ROOT = os.path.join(HERE, '..')
 RAW = os.path.join(ROOT, 'data', 'raw')
 TXT = os.path.join(ROOT, 'data', 'text')
 OUT = os.path.join(ROOT, 'docs', 'data')
+sys.path.insert(0, HERE)
+import topics as topiclib
 
 SHARDS = 1024
 BLOCK = 128          # passages per text block
@@ -218,14 +220,17 @@ def main():
     hmeta = []
     speaker_counts = collections.Counter()
     committee_counts = collections.Counter()
+    topic_counts = collections.Counter()
 
     for hi, h in enumerate(hearings):
         first = len(passages)
         seq = 0
+        tslugs = [topiclib.slug(t) for t in (h.get('topics') or [])]
         for t in h['turns']:
             passages.append({
                 'h': hi, 'k': 'q', 's': t['speaker'], 'r': t['role'],
                 'm': t.get('member'), 't': t['text'], 'i': seq,
+                'topics': tslugs,
             })
             seq += 1
             speaker_counts[t['speaker']] += 1
@@ -243,19 +248,39 @@ def main():
                         'h': hi, 'k': 'w',
                         's': sub['author'] or f"{doc['label']} (witness not identified)",
                         'r': 'written', 'm': None, 't': part, 'i': seq,
+                        'topics': tslugs,
                     })
                     seq += 1
 
+        subs = h.get('subjects') or []
+        # The line a reader recognises the hearing by. An oversight item names
+        # the hearing's actual subject and always wins. Otherwise, showing one
+        # arbitrary item out of a long agenda is worse than showing none: it
+        # reads as the hearing's subject when it is just whatever sorted first.
+        oversight = [t for t in subs if re.match(r'\s*oversight\b', t, re.I)]
+        if oversight:
+            subject = oversight[0]
+        elif h.get('stated_meeting'):
+            subject = 'Stated meeting of the Council'
+        elif len(subs) <= 2 and subs:
+            subject = subs[0]
+        else:
+            subject = ''
         hm = {
             'id': h['id'], 'date': h['date'], 'committees': h['committees'],
             'stated': bool(h.get('stated_meeting')), 'time': h.get('start_time'),
             'first': first, 'n': len(passages) - first,
+            'topics': h.get('topics') or [],
+            'subject': subject[:200],
+            'subjects': subs[:12],
             'docs': [{'k': d['kind'], 'l': d['label'], 'u': d['url'],
                       'p': d.get('pages')} for d in h['documents']],
         }
         hmeta.append(hm)
         for c in h['committees']:
             committee_counts[c] += 1
+        for t in hm['topics']:
+            topic_counts[t] += 1
 
     print(f'{len(hearings)} hearings, {len(passages)} passages', flush=True)
     if not passages:
@@ -282,6 +307,8 @@ def main():
         postings[f'zzrole_{p["r"]}'].append((pid, 1, [0]))
         for w in speaker_key(p.get('m') or p['s']):
             postings[f'zzspk_{w}'].append((pid, 1, [0]))
+        for t in p.get('topics') or ():
+            postings[f'zztop_{t}'].append((pid, 1, [0]))
         if pid % 100000 == 0 and pid:
             print(f'  indexed {pid}/{len(passages)}', flush=True)
 
@@ -410,6 +437,8 @@ def main():
         'transcripts': sum(1 for h in hmeta for d in h['docs'] if d['k'] == 'transcript'),
         'testimony_docs': sum(1 for h in hmeta for d in h['docs'] if d['k'] == 'testimony'),
         'committees': [c for c, _ in committee_counts.most_common()],
+        'topics': [[t, n] for t, n in topic_counts.most_common()],
+        'topic_slugs': {t: topiclib.slug(t) for t, _ in topic_counts.most_common()},
         'top_speakers': speaker_counts.most_common(400),
     }
     json.dump(meta, open(os.path.join(OUT, 'meta.json'), 'w'),

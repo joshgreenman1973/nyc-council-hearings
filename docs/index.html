@@ -47,6 +47,23 @@
     padding:9px 26px;border-bottom:1px solid var(--hair);
     font-size:var(--t-micro);letter-spacing:.16em;text-transform:uppercase;
     font-weight:700;color:var(--ink2)}
+  .rh-right{display:flex;align-items:center;gap:10px}
+  .rh-right select{padding:6px 8px}
+
+  /* Topics are our grouping, not the Council's, so they sit in their own band
+     above the Council's own filing by committee. */
+  .topicbar{display:flex;gap:12px;align-items:flex-start;
+    padding:11px 26px;border-bottom:1px solid var(--hair);background:var(--paper)}
+  .tlabel{font-size:var(--t-micro);letter-spacing:.13em;text-transform:uppercase;
+    font-weight:700;color:var(--ink2);padding-top:7px;flex:none}
+  .tchips{display:flex;gap:6px;flex-wrap:wrap}
+  .tchips .chip{display:inline-flex;align-items:baseline;gap:6px}
+  .tcount{font-style:normal;font-weight:700;opacity:.55;font-variant-numeric:tabular-nums}
+  .topics{display:block;margin-top:5px}
+  .tchip{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    background:none;border:0;border-bottom:1px solid var(--hair);color:var(--ink2);
+    cursor:pointer;padding:0 0 1px;margin-right:11px;font-family:inherit}
+  .tchip:hover{color:var(--ink1);border-color:var(--ink1)}
 
   .hhead{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
     padding:16px 26px 7px;border-top:1px solid var(--ink);margin-top:20px}
@@ -167,6 +184,7 @@
           <tr><td><code>speaker:tisch</code></td><td>only where that speaker is the one talking</td></tr>
           <tr><td><code>role:public</code></td><td>council, administration, public, written, staff</td></tr>
           <tr><td><code>committee:finance</code></td><td>hearings of committees whose name contains that</td></tr>
+          <tr><td><code>topic:housing</code></td><td>one of the topics in the band above the filters</td></tr>
           <tr><td><code>after:2026-01-01</code></td><td>hearings from that date on; <code>before:</code> for the other end</td></tr>
         </tbody>
       </table>
@@ -174,6 +192,11 @@
         loosely on their own; press <b>Exact words only</b> to switch that off and search for
         precisely what you typed.</p>
     </div>
+  </div>
+
+  <div class="topicbar">
+    <span class="tlabel">Topic</span>
+    <div class="tchips" id="topics"></div>
   </div>
 
   <div class="filters">
@@ -197,7 +220,15 @@
 
   <div class="resulthead">
     <span id="count"></span>
-    <span><button class="chip" id="export" hidden>Download for NotebookLM</button> Newest hearing first</span>
+    <span class="rh-right">
+      <button class="chip" id="export" hidden>Download for NotebookLM</button>
+      <label for="sort">Sort</label>
+      <select id="sort">
+        <option value="relevance">Best match</option>
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+    </span>
   </div>
 
   <div id="results"></div>

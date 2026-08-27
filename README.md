@@ -13,7 +13,8 @@ Run in order. Every step resumes from where it stopped, so a killed run costs no
 python3 scripts/crawl_meetings.py    # meeting pages -> data/raw/meetings.jsonl
 python3 scripts/select_documents.py  # pick + dedupe -> data/raw/documents.jsonl
 python3 scripts/fetch_pdfs.py        # download, extract, discard the PDFs
-python3 scripts/build_corpus.py      # group documents into hearings
+python3 scripts/repair_text.py       # fix extraction artefacts in data/text (idempotent)
+python3 scripts/build_corpus.py      # group documents into hearings, assign topics
 python3 scripts/build_index.py       # write docs/data/
 ```
 
@@ -61,14 +62,33 @@ time would put a quarter of a gigabyte of duplicated text in the repository to n
 The results page has the other export: whatever the current search matched, with context
 and Legistar links, as one file.
 
+## Topics
+
+`scripts/topics.py` holds the taxonomy: a deterministic committee-to-topic table plus
+keyword rules over the agenda's own subject lines. Rules only add topics, so a hearing can
+carry several. This is an editorial grouping and the site says so; the committee filter is
+the Council's own filing and is exact.
+
+## Text repairs
+
+`scripts/repair.py` fixes what PDF extraction breaks — ligature glyphs, a colon standing in
+for `ti`, soft hyphens — each checked against a word list first, so `about:blank` survives
+and `informa:on` becomes `information`. A couple of dozen documents extracted with no word
+spaces at all; those are re-segmented against `data/raw/word_freq.json`, built from the
+healthy part of the corpus. A run that cannot be resolved is left alone rather than guessed.
+
+The record's own misspellings are never touched. The single exception is committee *labels*,
+snapped to `data/raw/committees_official.json` on a near-exact match so one stenographer's
+typo does not create a phantom committee in the filters.
+
 ## Query language
 
 Handled entirely in the browser by `docs/search.js`. `"phrase"` is literal and exact;
 a bare word also matches its corpus-attested plural and tense variants, and falls back
 to an edit-distance match when it occurs nowhere. `word*` is a prefix, `-word` excludes,
-`word~` forces fuzzy, and `speaker:`, `role:`, `committee:`, `after:`, `before:` narrow
-the field. `speaker:` and `role:` work because `build_index.py` writes them into the
-index as reserved `zzspk_`/`zzrole_` terms, which the tokeniser can never produce.
+`word~` forces fuzzy, and `speaker:`, `role:`, `topic:`, `committee:`, `after:`, `before:`
+narrow the field. `speaker:` and `role:` work because `build_index.py` writes them into the
+index as reserved `zzspk_`/`zzrole_`/`zztop_` terms, which the tokeniser can never produce.
 
 Fuzzy and wildcard expansion run against `docs/data/dict.json`, the corpus vocabulary
 with document frequencies. It loads lazily in the background; exact search never waits

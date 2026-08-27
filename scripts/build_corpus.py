@@ -15,6 +15,7 @@ RAW = os.path.join(ROOT, 'data', 'raw')
 TXT = os.path.join(ROOT, 'data', 'text')
 sys.path.insert(0, HERE)
 import segment
+import topics as topiclib
 
 VIDEO = re.compile(r'Video')
 
@@ -28,6 +29,50 @@ PLAUSIBLE_LAST = (__import__('datetime').date.today() +
 def norm_key(s):
     s = unicodedata.normalize('NFKD', s or '').encode('ascii', 'ignore').decode()
     return re.sub(r'[^a-z0-9]+', '', s.lower())
+
+
+def load_official_committees():
+    p = os.path.join(RAW, 'committees_official.json')
+    return json.load(open(p)) if os.path.exists(p) else []
+
+
+def _edit(a, b, cap):
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        if min(cur) > cap:
+            return cap + 1
+        prev = cur
+    return prev[-1]
+
+
+def canonical_committee(name, official):
+    """Snap a committee name from a transcript cover to the Council's own list.
+
+    Cover pages are typed by the stenographer and contain typos -- "Committee on
+    Conumser and Worker Protection" -- which would otherwise appear as a
+    separate committee in the filters. This corrects the *label* against the
+    authoritative list only, and only for a near-exact match. It never touches
+    the transcript text, where the stenographer's spelling is the record.
+    """
+    if not official:
+        return name, False
+    for o in official:
+        if o.lower() == name.lower():
+            return o, False
+    cap = 3 if len(name) > 24 else 2
+    best, bestd = None, cap + 1
+    for o in official:
+        d = _edit(name.lower(), o.lower(), cap)
+        if d < bestd:
+            best, bestd = o, d
+    if best is not None and bestd <= cap:
+        return best, True
+    return name, False
 
 
 def load_members():
@@ -49,6 +94,7 @@ def load_members():
 
 
 def main():
+    official = load_official_committees()
     docs = {d['file_id']: d for d in
             (json.loads(l) for l in open(os.path.join(RAW, 'documents.jsonl')))}
     state = json.load(open(os.path.join(RAW, 'fetch_state.json')))
@@ -110,6 +156,15 @@ def main():
         if not committees:
             committees = ['New York City Council']
 
+        fixed = []
+        for c in committees:
+            c2, corrected = canonical_committee(c, official)
+            if corrected:
+                stats['committee_name_corrected'] += 1
+            if c2 not in fixed:
+                fixed.append(c2)
+        committees = fixed
+
         key = date + '|' + norm_key('+'.join(sorted(committees)))
         hr = hearings.setdefault(key, {
             'id': hashlib.sha1(key.encode()).hexdigest()[:12],
@@ -121,9 +176,25 @@ def main():
             'duplicate_file_ids': [],
             'turns': [],
             'testimony': [],
+            'subjects': [],
+            'files': [],
         })
         if h:
             by_hash[h] = key
+
+        # The subject of a hearing is what was on its agenda that day. Only take
+        # items from meetings held on the hearing's own date: a bill carries its
+        # documents forward, so a later meeting's agenda says nothing about this
+        # hearing.
+        same_day = {s['meeting_id'] for s in doc['seen_at'] if s.get('date') == date}
+        for mid in same_day:
+            for it in meetings.get(mid, {}).get('items', []):
+                t = (it.get('title') or '').strip()
+                if len(t) > 12 and t not in hr['subjects']:
+                    hr['subjects'].append(t)
+                fn = (it.get('file') or '').strip()
+                if fn and fn not in hr['files']:
+                    hr['files'].append(fn)
 
         meeting_ids = sorted({s['meeting_id'] for s in doc['seen_at']})
         hr['documents'].append({
@@ -145,6 +216,14 @@ def main():
             hr['testimony'].append({'file_id': fid, 'label': doc['label'],
                                     'chars': len(text)})
             stats['testimony_docs'] += 1
+
+    for hr in hearings.values():
+        hr['subjects'] = hr['subjects'][:40]
+        hr['files'] = hr['files'][:60]
+        hr['topics'] = topiclib.topics_for(hr['committees'], hr['subjects'],
+                                           hr.get('stated_meeting'))
+        for t in hr['topics']:
+            stats['topic_' + t] += 1
 
     out = os.path.join(RAW, 'hearings.jsonl')
     with open(out, 'w') as f:
