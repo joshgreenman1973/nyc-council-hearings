@@ -14,11 +14,11 @@ python3 scripts/crawl_meetings.py    # meeting pages -> data/raw/meetings.jsonl
 python3 scripts/select_documents.py  # pick + dedupe -> data/raw/documents.jsonl
 python3 scripts/fetch_pdfs.py        # download, extract, discard the PDFs
 python3 scripts/build_corpus.py      # group documents into hearings
-python3 scripts/build_index.py       # write site/data/
+python3 scripts/build_index.py       # write docs/data/
 ```
 
 `data/pdf/` and `data/text/` are not in git: the PDFs are gigabytes and disposable,
-and the extracted text is rebuilt from them. What ships is `site/`.
+and the extracted text is rebuilt from them. What ships is `docs/`.
 
 ## The one manual step
 
@@ -55,7 +55,7 @@ needed a browser.
 
 ## NotebookLM packs
 
-There is no build step for these. `site/packs.js` assembles a committee's Markdown in the
+There is no build step for these. `docs/packs.js` assembles a committee's Markdown in the
 browser out of the same passage blocks the search already fetches. Writing them at build
 time would put a quarter of a gigabyte of duplicated text in the repository to no purpose.
 The results page has the other export: whatever the current search matched, with context
@@ -63,14 +63,14 @@ and Legistar links, as one file.
 
 ## Query language
 
-Handled entirely in the browser by `site/search.js`. `"phrase"` is literal and exact;
+Handled entirely in the browser by `docs/search.js`. `"phrase"` is literal and exact;
 a bare word also matches its corpus-attested plural and tense variants, and falls back
 to an edit-distance match when it occurs nowhere. `word*` is a prefix, `-word` excludes,
 `word~` forces fuzzy, and `speaker:`, `role:`, `committee:`, `after:`, `before:` narrow
 the field. `speaker:` and `role:` work because `build_index.py` writes them into the
 index as reserved `zzspk_`/`zzrole_` terms, which the tokeniser can never produce.
 
-Fuzzy and wildcard expansion run against `site/data/dict.json`, the corpus vocabulary
+Fuzzy and wildcard expansion run against `docs/data/dict.json`, the corpus vocabulary
 with document frequencies. It loads lazily in the background; exact search never waits
 for it.
 
@@ -80,5 +80,5 @@ for it.
 scripts/   the pipeline, in the order above
 data/raw/  crawl output, committed (small); head_cache.json is not
 site/      the static site — house.css, index.html, methodology.html, search.js
-site/data/ the built index: meta.json, hearings.json, idx/*.json, psg/*.json
+docs/data/ the built index: meta.json, hearings.json, idx/*.json, psg/*.json
 ```

@@ -26,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
 RAW = os.path.join(ROOT, 'data', 'raw')
 TXT = os.path.join(ROOT, 'data', 'text')
-OUT = os.path.join(ROOT, 'site', 'data')
+OUT = os.path.join(ROOT, 'docs', 'data')
 
 SHARDS = 1024
 BLOCK = 128          # passages per text block
