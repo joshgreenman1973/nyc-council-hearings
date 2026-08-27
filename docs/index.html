@@ -19,6 +19,10 @@
   .examples a:hover{color:var(--ink);border-color:var(--ink)}
   .examples .chip{margin-left:14px;padding:3px 9px}
   .expansion,.suggest{margin:8px 0 0;font-size:.92rem;color:var(--ink2)}
+  .reading{margin:9px 0 0;font-size:.94rem;color:var(--ink);
+    border-left:3px solid var(--ink1);padding:2px 0 2px 11px}
+  .reading b{font-weight:700}
+  .reading a{color:var(--ink1)}
   .suggest a{color:var(--ink1)}
   .tips{margin:12px 0 2px;border:1px solid var(--hair);padding:13px 16px;background:var(--paper)}
   .tips code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;
@@ -165,10 +169,11 @@
   </div>
 
   <div class="searchbar">
-    <input type="search" id="q" placeholder="Search the hearing record — press / to jump here, quote a phrase to match it exactly"
+    <input type="search" id="q" placeholder="Ask a question, or search for words — press / to jump here"
            autocomplete="off" spellcheck="false" aria-label="Search hearings">
-    <p class="examples">Try<a href="#" data-example="overtime">overtime</a><a href="#" data-example="&quot;right to counsel&quot;">"right to counsel"</a><a href="#" data-example="rat mitigation">rat mitigation</a><a href="#" data-example="evict*">evict*</a><a href="#" data-example="speaker:tisch overtime">speaker:tisch overtime</a>
+    <p class="examples">Try<a href="#" data-example="overtime">overtime</a><a href="#" data-example="&quot;right to counsel&quot;">"right to counsel"</a><a href="#" data-example="rat mitigation">rat mitigation</a><a href="#" data-example="evict*">evict*</a><a href="#" data-example="speaker:tisch overtime">speaker:tisch overtime</a><a href="#" data-example="What did the administration say is behind rising assaults?">a question</a>
       <button class="chip" id="tips-toggle" aria-expanded="false">Search tips</button></p>
+    <p class="reading" id="reading" hidden></p>
     <p class="expansion" id="expansion" hidden></p>
     <p class="suggest" id="suggest" hidden></p>
 
@@ -253,6 +258,7 @@
   </div>
 </div>
 
+<script src="ask.js"></script>
 <script src="search.js"></script>
 </body>
 </html>

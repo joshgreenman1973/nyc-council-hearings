@@ -186,14 +186,28 @@
       <code>after:</code> and <code>before:</code> narrow the field. Speaker and role are stored in
       the index as reserved terms, so filtering by them costs a lookup rather than a scan.</p>
 
-    <h3>Asking the record questions in plain language</h3>
-    <p>Word search finds the passages that contain your words. To ask the record a question in
-      plain language, take an extract into Google NotebookLM: either download the results of a
-      search from the front page, or take a whole committee's record from the
-      <a href="export.html">packs page</a>. Both are Markdown, both carry the Legistar link for
-      every hearing, and both are cut to sit under NotebookLM's per-source word limit. What comes
-      back from NotebookLM is a model's reading of those documents, not the documents; follow its
-      citation back before quoting.</p>
+    <h3>Asking a question in plain language</h3>
+    <p>Type a question rather than keywords and it is read as a question. Nothing here is a language
+      model: it is a set of rules that pick out the parts of a question the record actually knows
+      about. <i>What did the Mamdani administration say is the reason behind rising assaults?</i>
+      becomes administration witnesses, from January 2026 on, about assaults — and the reading is
+      printed above the results, where you can override it and search the words literally instead.</p>
+    <p>Two things make the difference between finding an answer and missing it. The first is that a
+      question is not an <i>and</i> of its words: someone asking about <i>rising</i> assaults will
+      not find the official who said they were <i>up 9 percent</i> if every word is required. So the
+      words a question is about are scored rather than demanded, widened with synonyms, and a
+      passage ranks by how much of the question it covers. The second is that one word in a question
+      is usually the subject and the rest is grammar — so the most distinctive word anchors the
+      search and must appear. Without that anchor a passage containing "because" and "up" outranks
+      the one that is actually about assaults.</p>
+    <p>Where this runs out: the rules only know the synonyms they have been given, and they cannot
+      tell that "the bulk of those assaults have been on members of the service" is an explanation
+      while a sentence merely containing the word "because" is not. It finds the passage; the
+      reading is yours.</p>
+    <p>For a synthesised answer rather than a ranked list, take an extract into Google NotebookLM:
+      download the results of a search from the front page, or a whole committee from the
+      <a href="export.html">packs page</a>. What comes back from NotebookLM is a model's reading of
+      those documents, not the documents; follow its citation back before quoting.</p>
 
     <h3>Where this is wrong</h3>
     <ul>

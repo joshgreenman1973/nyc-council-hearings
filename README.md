@@ -81,6 +81,20 @@ The record's own misspellings are never touched. The single exception is committ
 snapped to `data/raw/committees_official.json` on a near-exact match so one stenographer's
 typo does not create a phantom committee in the filters.
 
+## Plain-language questions
+
+`docs/ask.js` turns a question into a query: mayoral terms to date ranges ("the Mamdani
+administration" -> `role:administration after:2026-01-01`), role and topic hints, named
+speakers matched against `speakers.json`, and a synonym table so "rising" reaches "up" and
+"increase". No model involved. The reading is always shown and always overridable.
+
+Retrieval for questions is deliberately *not* an AND (`runQuestion` in `search.js`): terms
+are scored, not required, and a passage ranks by how much of the question it covers. The
+one exception is the anchor — the clause with the largest union document frequency is the
+distinctive word and must appear, or "because" and "up" outrank the passage about assaults.
+A clause's reach is the **max** df across its synonyms, not the min; taking the min lets one
+rare synonym ("uptick") pose as the distinctive word.
+
 ## Query language
 
 Handled entirely in the browser by `docs/search.js`. `"phrase"` is literal and exact;

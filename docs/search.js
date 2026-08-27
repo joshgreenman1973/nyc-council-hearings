@@ -6,7 +6,7 @@ const state = {
   meta: null, hearings: null,
   shards: new Map(), blocks: new Map(),
   q: '', exact: false, parsed: null, expansion: [], missing: [],
-  sort: 'relevance',
+  sort: 'relevance', question: null, literal: false, speakerIndex: [],
   filters: { role: new Set(), topic: new Set(), committee: '', from: '', to: '', kind: '' },
   results: [], shown: 0, seq: 0,
 };
@@ -384,6 +384,145 @@ async function runSearch(q) {
   }
   hits.sort((a, b) => b.score - a.score);
   return hits;
+}
+
+/* ---------- answering a plain-language question ----------
+   A question is not an AND of its words. Someone asking about "rising"
+   assaults will not find the official who said they were "up by 9 percent" if
+   every word is required, so the words a question is about are scored rather
+   than demanded: a passage needs one of them, and ranks by how many it has and
+   how distinctive they are. The filters a question implies -- who was talking,
+   when -- stay hard, because those the record actually knows. */
+const SOFT_CANDIDATE_MAX_DF = 0.22;   // a term in more passages than this only scores
+
+async function runQuestion(tr) {
+  state.loosePhrase = false;
+  state.expansion = [];
+  state.missing = [];
+  const N = state.meta.passages;
+  const idf = df => Math.log(1 + (N - df + 0.5) / (df + 0.5));
+
+  // date and topic scoping reuse the ordinary machinery
+  state.parsed = { clauses: [], fields: {
+    speaker: tr.filters.speaker, role: tr.filters.role, committee: [],
+    topic: tr.filters.topic, after: tr.filters.after, before: tr.filters.before } };
+
+  const hard = [];
+  for (const w of tr.filters.speaker) {
+    const d = await postingsFor('zzspk_' + w);
+    if (!d) { state.missing.push('speaker:' + w); return []; }
+    hard.push(d.posting);
+  }
+  if (tr.filters.role.length) {
+    const maps = [];
+    for (const r of tr.filters.role) {
+      const d = await postingsFor('zzrole_' + r);
+      if (d) maps.push(d.posting);
+    }
+    if (maps.length) hard.push(unionMaps(maps));
+  }
+  const topics = [...new Set([...state.filters.topic, ...tr.filters.topic])];
+  if (topics.length) {
+    const maps = [];
+    for (const t of topics) {
+      const d = await postingsFor('zztop_' + t);
+      if (d) maps.push(d.posting);
+    }
+    if (maps.length) hard.push(unionMaps(maps));
+  }
+
+  // the words the question is about, each widened with its synonyms and with
+  // whatever spelling variants the corpus actually uses
+  const { map } = await getDict();
+  const clauses = [];
+  for (const t of tr.terms) {
+    const seen = new Set();
+    const alts = [];
+    const add = async (term, weight, how) => {
+      if (seen.has(term)) return;
+      seen.add(term);
+      const d = await postingsFor(term);
+      if (d) alts.push({ ...d, term, weight, how });
+    };
+    await add(t.term, 1, 'exact');
+    for (const a of t.alts) await add(a, 0.72, 'means the same');
+    if (!state.exact) {
+      for (const v of variantsOf(t.term)) if (map.has(v)) await add(v, 0.82, 'variant');
+    }
+    // A synonym so common it is nearly a stopword ("up", "result", "because")
+    // adds noise and no signal; keep the word itself whatever its frequency.
+    const kept = alts.filter(a => a.term === t.term || a.df < N * 0.12);
+    if (kept.length) clauses.push({ term: t.term, alts: kept });
+  }
+  if (!clauses.length) return [];
+
+  // The distinctive noun anchors the question. Without this, a passage that
+  // happens to contain "because" and "up" outranks the one that is actually
+  // about assaults, because it matches two clauses instead of one.
+  // A clause matches the union of its alternatives, so its reach is closer to
+  // the largest of them than the smallest. Taking the minimum would let a
+  // clause with one rare synonym ("uptick") pose as the distinctive word.
+  clauses.forEach(c => { c.df = Math.max(...c.alts.map(a => a.df)); });
+  const rarest = clauses.reduce((a, b) => (a.df <= b.df ? a : b));
+  const anchored = rarest.df < N * 0.05 && clauses.length > 1;
+  if (anchored) rarest.required = true;
+
+  state.anchor = anchored ? rarest.term : null;
+  clauses.forEach(c => state.expansion.push({
+    term: c.term,
+    alts: c.alts.filter(a => a.term !== c.term).map(a => ({ t: a.term, how: a.how })),
+  }));
+
+  // candidates: anything holding one of the distinctive words
+  const cand = new Set();
+  const cap = N * SOFT_CANDIDATE_MAX_DF;
+  const sources = anchored ? [rarest]
+                           : (clauses.filter(c => c.df < cap).length
+                              ? clauses.filter(c => c.df < cap) : clauses);
+  for (const c of sources) {
+    for (const a of c.alts) {
+      if (!anchored && a.df > cap && sources.length > 1) continue;
+      a.posting.forEach((_, pid) => cand.add(pid));
+    }
+  }
+
+  // a question asking why wants the passage that explains, not one that mentions
+  const causal = [];
+  for (const w of tr.causalTerms) {
+    const d = await postingsFor(w);
+    if (d) causal.push(d.posting);
+  }
+
+  const hits = [];
+  for (const pid of cand) {
+    if (hard.some(m => !m.has(pid))) continue;
+    let score = 0, matched = 0, hasAnchor = !anchored;
+    for (const c of clauses) {
+      let best = 0;
+      for (const a of c.alts) {
+        const e = a.posting.get(pid);
+        if (e) best = Math.max(best, idf(a.df) * (e.w / 255) * a.weight);
+      }
+      if (best > 0) { score += best; matched++; if (c.required) hasAnchor = true; }
+    }
+    if (!matched || !hasAnchor) continue;
+    // covering more of the question counts for more than repeating one word
+    score *= 0.45 + 0.55 * (matched / clauses.length);
+    if (causal.length) {
+      const c = causal.reduce((n, m) => n + (m.has(pid) ? 1 : 0), 0);
+      if (c) score *= 1 + Math.min(0.35, 0.12 * c);
+    }
+    hits.push({ pid, score, matched });
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits;
+}
+
+function unionMaps(maps) {
+  if (maps.length === 1) return maps[0];
+  const out = new Map();
+  maps.forEach(m => m.forEach((v, k) => { if (!out.has(k)) out.set(k, v); }));
+  return out;
 }
 
 /* When nothing matched, the nearest words that would have. */
@@ -876,13 +1015,38 @@ async function exportResults() {
 }
 
 /* ---------- showing the reader what the search actually did ---------- */
+function renderReading() {
+  const box = $('#reading');
+  box.innerHTML = '';
+  const tr = state.question;
+  if (!tr) { box.hidden = true; return; }
+  box.hidden = false;
+  box.appendChild(el('b', null, 'Read as a question:'));
+  const parts = [...tr.reading];
+  if (tr.filters.after && !parts.some(p => /administration|year/.test(p)))
+    parts.push('from ' + fmtDate(tr.filters.after));
+  if (tr.filters.before && !parts.some(p => /administration|year/.test(p)))
+    parts.push('up to ' + fmtDate(tr.filters.before));
+  if (tr.terms.length) parts.push('about ' + tr.terms.map(t => t.term).join(', '));
+  if (tr.causal) parts.push('preferring passages that explain');
+  box.appendChild(document.createTextNode(' ' + (parts.join(' · ') || 'no filters')));
+  const a = el('a', null, 'search these words literally instead');
+  a.href = '#';
+  a.onclick = e => { e.preventDefault(); state.literal = true; doSearch(); };
+  box.appendChild(document.createTextNode(' — '));
+  box.appendChild(a);
+}
+
 function renderExpansion() {
   const box = $('#expansion');
   box.innerHTML = '';
   const bits = [];
+  const CAP = 5;
   (state.expansion || []).forEach(e => {
     if (!e.alts.length) return;
-    bits.push(`${e.term} also matched ${e.alts.map(a => a.t).join(', ')}`);
+    const shown = e.alts.slice(0, CAP).map(a => a.t).join(', ');
+    const extra = e.alts.length - CAP;
+    bits.push(`${e.term} also matched ${shown}` + (extra > 0 ? ` and ${extra} more` : ''));
   });
   if (state.loosePhrase) bits.push('a quoted phrase was matched as words');
   if (!bits.length) { box.hidden = true; return; }
@@ -921,9 +1085,12 @@ async function doSearch() {
   const q = $('#q').value.trim();
   state.q = q;
   const mine = ++searchToken;
-  if (!q) { state.parsed = null; renderBrowse(); syncUrl(); return; }
+  if (!q) { state.parsed = null; state.question = null; renderBrowse(); syncUrl(); return; }
   $('#count').textContent = 'Searching…';
-  const hits = await runSearch(q);
+
+  state.question = state.literal ? null
+    : translateQuestion(q, { meta: state.meta, speakers: state.speakerIndex });
+  const hits = state.question ? await runQuestion(state.question) : await runSearch(q);
   if (mine !== searchToken) return;
 
   // highlight everything that actually matched, expansions included
@@ -932,11 +1099,12 @@ async function doSearch() {
     queryTerms.push(e.term);
     e.alts.forEach(a => queryTerms.push(a.t));
   });
-  (state.parsed.clauses || []).forEach(c => {
+  ((state.parsed && state.parsed.clauses) || []).forEach(c => {
     if (c.kind === 'phrase' && !c.neg) c.seq.forEach(t => queryTerms.push(t.term));
     if (c.kind === 'term' && !c.neg) queryTerms.push(c.term);
   });
   queryTerms = [...new Set(queryTerms)];
+  renderReading();
   renderExpansion();
 
   const ranges = allowedRanges();
@@ -1011,6 +1179,8 @@ async function init() {
     fetch(DATA + 'hearings.json').then(r => r.json()),
   ]);
   state.meta = meta; state.hearings = hearings;
+  fetch(DATA + 'speakers.json').then(r => r.ok ? r.json() : [])
+    .then(v => { state.speakerIndex = v; }).catch(() => {});
 
   $('#n-hearings').textContent = meta.hearings.toLocaleString();
   $('#n-transcripts').textContent = meta.transcripts.toLocaleString();
@@ -1037,7 +1207,10 @@ async function init() {
   });
 
   let t;
-  $('#q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(doSearch, 220); });
+  $('#q').addEventListener('input', () => {
+    state.literal = false;          // a new question is read as a question again
+    clearTimeout(t); t = setTimeout(doSearch, 220);
+  });
   $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(t); doSearch(); } });
   sel.addEventListener('change', () => { state.filters.committee = sel.value; refilter(); });
   $('#from').addEventListener('change', () => { state.filters.from = $('#from').value; refilter(); });
