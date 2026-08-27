@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How the hearing search was built</title>
+<meta name="description" content="Sources, deduplication, text extraction and known limits of the New York City Council hearing search.">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css">
+<style>
+  :root{ --ink3:#7a4a86; }
+  .prose{padding:20px 26px 60px;max-width:74ch}
+  .prose h3{font-family:var(--display);font-size:1.12rem;font-weight:700;letter-spacing:-.01em;
+    margin:30px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--hair)}
+  .prose h3:first-child{margin-top:6px}
+  .prose p{margin:0 0 12px;font-size:1rem;line-height:1.62}
+  .prose ul{margin:0 0 12px;padding-left:20px}
+  .prose li{margin:0 0 7px;font-size:1rem;line-height:1.58}
+  .prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88rem;
+    background:var(--paper2);padding:1px 4px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip">
+    <span>New York City Council · hearing record</span>
+    <span><a href="index.html">Back to search</a></span>
+  </div>
+
+  <header class="head">
+    <h1>How this was built</h1>
+    <p class="sub">What is in the corpus, how it was assembled, and the places where it is
+      wrong or incomplete. Read this before you quote anything.</p>
+    <p class="src">Last built <span id="built">—</span></p>
+  </header>
+
+  <div class="capline" id="capline">Covering <b id="span">—</b></div>
+
+  <div class="prose">
+
+    <h3>Where the documents come from</h3>
+    <p>Everything here is a document the New York City Council publishes itself, through Legistar,
+      the legislative records system at <code>legistar.council.nyc.gov</code>. Two kinds of document
+      matter:</p>
+    <ul>
+      <li><b>Hearing transcripts.</b> Verbatim stenographic transcripts, prepared for the Council by
+        World Wide Dictation and attached to the bill or oversight item the hearing considered. They
+        carry speaker labels, which is what makes the question-and-answer search possible.</li>
+      <li><b>Written testimony.</b> Statements submitted to the committee, uploaded either one
+        witness per file or as a single concatenated packet running to a hundred pages or more.</li>
+    </ul>
+    <p>Legistar's own data interface now requires an access token that is not issued to the public,
+      so the record was read the way a person reads it: by walking the public calendar, meeting
+      pages and agenda items and following the attachment links.</p>
+
+    <h3>What is covered, and what is not</h3>
+    <p>Every meeting on the Council's calendar for the 2024, 2025 and 2026 sessions was enumerated
+      and crawled — <span id="n-meetings">1,740</span> meetings — and every transcript and testimony
+      file attached to them was collected. Two consequences worth understanding:</p>
+    <ul>
+      <li>Because a bill carries its whole document history forward, documents from hearings before
+        2024 turn up attached to later meetings, and they are included. Coverage of those earlier
+        years is <b>incidental, not complete</b>. Do not read the absence of a 2022 hearing as
+        evidence that it did not happen.</li>
+      <li>Transcripts are posted weeks and sometimes months after the hearing. The most recent
+        hearings will often have written testimony and no transcript yet.</li>
+    </ul>
+    <p>Land use and zoning subcommittee sessions, stated meetings of the full Council and committee
+      hearings are all present. Stated meetings can be filtered in or out; they are mostly votes and
+      procedural business, with a public comment period.</p>
+
+    <h3>Removing duplicates</h3>
+    <p>The same transcript is uploaded against every bill heard that day, and re-uploaded whenever a
+      bill returns to committee, each time getting a new file identifier. The raw crawl produced
+      <span id="n-cands">many thousands of</span> attachment links for a far smaller number of real
+      documents. Duplicates were collapsed twice: first on kind, hearing date and exact byte size,
+      then on the SHA-1 of the downloaded file — which removed a further
+      <span id="n-dupes">—</span> re-uploads that were byte-identical under different
+      identifiers. What survives is <span id="n-docs">—</span> distinct documents.</p>
+
+    <h3>What was left out, and why</h3>
+    <p>Three things are excluded, and none of them silently:</p>
+    <ul>
+      <li><b>Appearance cards</b> — the scanned sign-in sheets witnesses fill in. They are images of
+        handwriting, hold no extractable text, and run to more than a gigabyte. They are catalogued
+        but not downloaded.</li>
+      <li><b>Very large testimony packets.</b> Written testimony files run to 150 MB, and at that
+        size they are almost always scans rather than text. Files above the size ceiling are
+        excluded; transcripts, which are text-native and small, are all included.</li>
+      <li><b>Documents that yielded nothing.</b> <span id="n-excluded">A number of</span> files
+        either produced no extractable text — they were scanned — or took so long to parse that
+        they were abandoned. They are counted, not hidden.</li>
+    </ul>
+    <p>The practical shape of this: the question-and-answer record is close to complete for the
+      period covered, and the written testimony is partial, weighted towards the submissions that
+      were filed as text rather than as scans.</p>
+
+    <h3>From PDF to searchable text</h3>
+    <p>Text is extracted with <code>pypdf</code>. The transcripts are text-native rather than
+      scanned, which is why they are searchable at all, but they extract badly by default: one word
+      per line, a running committee header on every page and the stenographer's footer. All of that
+      is stripped and the prose reflowed. Written testimony is ordinary prose and is reflowed
+      differently, preserving paragraph breaks.</p>
+    <p>Any document that failed to download, exceeded the size ceiling, or yielded no extractable
+      text is excluded and counted rather than silently dropped.</p>
+
+    <h3>Splitting the record into passages</h3>
+    <p>The searchable unit is a passage. For a transcript, a passage is one speaker turn, cut at the
+      speaker labels the stenographer wrote (<code>CHAIRPERSON LEE:</code>,
+      <code>COMMISSIONER TISCH:</code>). A search hit is displayed with the turns either side of it,
+      which is what makes a question and its answer read as a single exchange.</p>
+    <p>For written testimony, a passage is roughly a paragraph. Where a packet announces each
+      submission with a heading of the form "Testimony of …", it is split on those headings and the
+      witness's name is taken from the heading. Where a packet carries no such headings, it is left
+      whole rather than cut at guessed boundaries.</p>
+
+    <h3>Who is speaking</h3>
+    <p>Roles are inferred from the title in the speaker label, not from any roster: <i>Council
+      member</i> and <i>Chairperson</i> and <i>Speaker</i> mean a member of the Council;
+      <i>Commissioner</i>, <i>Chief</i>, <i>Deputy Mayor</i> and the like mean the administration;
+      <i>Mr.</i> and <i>Ms.</i> mean a member of the public. Committee counsel and the sergeant at
+      arms are marked as staff.</p>
+    <p>Council members are shown by full name where the surname in the transcript matches the
+      current Council roster, taken from Legistar. Members who have since left the Council keep the
+      label the stenographer used. <b>No name is inferred or filled in from anywhere else.</b> The
+      appearance rosters printed at the front of transcripts are not used: they are frequently
+      incomplete, sometimes list people who were called but never testified, and parsing them
+      reliably was not possible without occasionally attaching the wrong name to a quotation.</p>
+
+    <h3>How search works</h3>
+    <p>The index is a set of static files; there is no server and no query is sent anywhere. Passages
+      are ranked with BM25. A phrase in double quotation marks must match in order — word positions
+      are recorded across every token, including the ones too common to index, so
+      <code>"right to counsel"</code> matches the phrase and not the three words scattered about.
+      For a handful of terms that appear in a very large share of all passages, positions are not
+      stored, and a phrase containing one of them is matched as words instead; the results line says
+      so when that happens.</p>
+    <p>The whole vocabulary of the corpus ships as one file, which is what makes the looser matching
+      possible without a server. An unquoted word is matched together with its plural and tense
+      variants, but only where those variants are words that actually occur in the corpus — a real
+      stemmer would turn <i>housing</i> into <i>hous</i> and produce matches nobody asked for. A word
+      that does not occur at all is matched against everything within one or two character edits of
+      it, so a misremembered spelling still finds the passage. Both behaviours are reported above the
+      results, so you can always see which words a search actually matched, and both are switched off
+      by <b>Exact words only</b>.</p>
+    <p>Quotation marks are the precise instrument: inside them there is no variant matching and no
+      fuzzy matching, only the literal words in the literal order. <code>evict*</code> matches
+      everything beginning that way, <code>-word</code> excludes, <code>word~</code> forces a loose
+      match, and <code>speaker:</code>, <code>role:</code>, <code>committee:</code>,
+      <code>after:</code> and <code>before:</code> narrow the field. Speaker and role are stored in
+      the index as reserved terms, so filtering by them costs a lookup rather than a scan.</p>
+
+    <h3>Asking the record questions in plain language</h3>
+    <p>Word search finds the passages that contain your words. To ask the record a question in
+      plain language, take an extract into Google NotebookLM: either download the results of a
+      search from the front page, or take a whole committee's record from the
+      <a href="export.html">packs page</a>. Both are Markdown, both carry the Legistar link for
+      every hearing, and both are cut to sit under NotebookLM's per-source word limit. What comes
+      back from NotebookLM is a model's reading of those documents, not the documents; follow its
+      citation back before quoting.</p>
+
+    <h3>Where this is wrong</h3>
+    <ul>
+      <li><b>The stenographer's spellings.</b> Names in transcripts are frequently misspelled, and
+        they are reproduced here as written. Searching for a witness by name will miss them if the
+        transcript spelled it differently.</li>
+      <li><b>Speaker segmentation.</b> A label the stenographer typed inconsistently, or a colon in
+        the middle of a sentence, will occasionally split or merge turns wrongly.</li>
+      <li><b>Testimony packets.</b> Splitting concatenated packets into individual submissions is a
+        heuristic. Attribution of a passage to a witness can be wrong where the packet's headings
+        are irregular.</li>
+      <li><b>Extraction artefacts.</b> Reflowing the text loses the original line breaks and page
+        boundaries, and occasionally welds two words together.</li>
+    </ul>
+    <p>Every passage links back to the Legistar file it came from. That file, not this page, is the
+      record.</p>
+  </div>
+
+  <div class="foot">
+    <p class="caution">Generated with the help of AI. The transcripts and testimony are the Council's
+      own documents, reproduced as published; the segmentation into speakers and exchanges is done by
+      software and will sometimes be wrong. Read the source document before quoting anything.</p>
+    <p><a href="index.html">Back to search</a> · <a href="https://legistar.council.nyc.gov/Calendar.aspx">Legistar calendar</a></p>
+  </div>
+</div>
+<script>
+fetch('data/meta.json').then(r => r.json()).then(m => {
+  const fmt = d => {
+    const [y, mo, dd] = d.split('-').map(Number);
+    return `${['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'][mo-1]} ${dd}, ${y}`;
+  };
+  document.getElementById('built').textContent = m.built;
+  document.getElementById('span').textContent = `${fmt(m.first_date)} to ${fmt(m.last_date)}`;
+  document.getElementById('capline').innerHTML =
+    `Covering <b>${fmt(m.first_date)}</b> to <b>${fmt(m.last_date)}</b> · ` +
+    `<b>${m.hearings.toLocaleString()}</b> hearings · <b>${m.transcripts.toLocaleString()}</b> transcripts · ` +
+    `<b>${m.testimony_docs.toLocaleString()}</b> testimony files · <b>${m.passages.toLocaleString()}</b> passages`;
+  const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
+  set('n-docs', (m.documents_selected || 0).toLocaleString());
+  set('n-excluded', (m.excluded_total || 0).toLocaleString());
+  set('n-dupes', (m.duplicates_collapsed || 0).toLocaleString());
+  if (m.candidates) document.getElementById('n-cands').textContent = m.candidates.toLocaleString();
+  if (m.meetings) document.getElementById('n-meetings').textContent = m.meetings.toLocaleString();
+});
+</script>
+</body>
+</html>

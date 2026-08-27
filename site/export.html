@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ask the hearing record a question</title>
+<meta name="description" content="Markdown packs of New York City Council hearing transcripts and testimony, sized for Google NotebookLM.">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css">
+<style>
+  :root{ --ink3:#7a4a86; }
+  .prose{padding:20px 26px 30px;max-width:74ch}
+  .prose h3{font-family:var(--display);font-size:1.12rem;font-weight:700;letter-spacing:-.01em;
+    margin:28px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--hair)}
+  .prose h3:first-child{margin-top:6px}
+  .prose p{margin:0 0 12px;font-size:1rem;line-height:1.62}
+  .prose ol,.prose ul{margin:0 0 12px;padding-left:20px}
+  .prose li{margin:0 0 7px;line-height:1.58}
+  .packs{padding:0 26px 60px}
+  table.h td a{color:var(--ink1)}
+  .packs .note{margin:14px 0 0;font-size:.94rem;line-height:1.55;color:var(--ink2);max-width:74ch}
+  .packs td .chip{white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip">
+    <span>New York City Council · hearing record</span>
+    <span><a href="index.html">Back to search</a> · <a href="methodology.html">Methodology</a></span>
+  </div>
+
+  <header class="head">
+    <h1>Ask the record a question</h1>
+    <p class="sub">The search on this site matches words. To ask the hearing record something in
+      plain language — who objected to this, what did the agency promise, has anyone raised it
+      before — put it into Google NotebookLM and ask there.</p>
+    <p class="src">Markdown packs · updated with each build</p>
+  </header>
+
+  <div class="prose">
+    <h3>Two ways in</h3>
+    <p><b>Start from a search.</b> Run a search on the front page, narrow it with the committee,
+      date and speaker filters, then press <i>Download for NotebookLM</i>. You get one Markdown file
+      containing every matching exchange with the turns either side of it, and a Legistar link for
+      each hearing. This is usually the better route: a tight, relevant source beats a large one.</p>
+    <p><b>Or take a whole committee.</b> Build a pack below and you get the complete transcripts
+      and written testimony for one committee, split into parts where a committee's record is too
+      long for a single source. The pack is assembled in your browser out of the same text the
+      search runs on.</p>
+
+    <h3>Putting a pack into NotebookLM</h3>
+    <ol>
+      <li>Go to <a href="https://notebooklm.google.com">notebooklm.google.com</a> and create a notebook.</li>
+      <li>Add source, choose the Markdown file you downloaded, and upload it.</li>
+      <li>Ask your question in plain language. NotebookLM cites the passage it drew on, and each
+        hearing in the pack carries its Legistar link so you can check the answer against the
+        original document.</li>
+    </ol>
+    <p>A notebook holds 50 sources on the free tier and 300 on the paid tier, and each source is
+      capped at roughly 500,000 words. The packs are cut to sit under the word limit, but the whole
+      hearing record is far past what one notebook will hold — add the committees you care about
+      rather than everything. Google may change these limits; if an upload is refused, that is
+      why.</p>
+    <p class="caution">NotebookLM answers only from the sources you give it, but it is still a
+      language model and it will occasionally get a detail wrong. Follow its citation back to the
+      Legistar document before you quote anything.</p>
+  </div>
+
+  <div class="colhead"><span>Packs by committee</span><span id="packcount"></span></div>
+  <div class="packs">
+    <table class="h">
+      <thead><tr><th></th><th>Committee</th><th class="n">Hearings</th><th class="n">Words</th><th class="n">Files</th><th>Covers</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="note">Packs are assembled in your browser from the same text the search uses, so
+      nothing is downloaded until you ask for it. A large committee takes a few seconds and
+      arrives as more than one file, each one under the per-source word limit.</p>
+  </div>
+
+  <div class="foot">
+    <p><a href="index.html">Back to search</a> · <a href="methodology.html">How this was built</a></p>
+  </div>
+</div>
+<script src="packs.js"></script>
+</body>
+</html>

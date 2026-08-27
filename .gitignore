@@ -1,0 +1,11 @@
+# PDFs are gigabytes and disposable — the text is extracted and they are deleted.
+data/pdf/
+# Extracted text and the assembled corpus are derived from the PDFs and large.
+# site/data/ is the durable artifact; rebuilding from source means re-running
+# fetch_pdfs.py, which takes a couple of hours.
+data/text/
+data/raw/hearings.jsonl
+data/raw/head_cache.json
+__pycache__/
+*.pyc
+.DS_Store
