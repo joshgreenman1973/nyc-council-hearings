@@ -29,7 +29,7 @@
 
   <header class="head">
     <h1>How this was built</h1>
-    <p class="sub">What is in the corpus, how it was assembled, and the places where it is
+    <p class="sub">What is in the corpus, how it was assembled and the places where it is
       wrong or incomplete. Read this before you quote anything.</p>
     <p class="src">Last built <span id="built">—</span></p>
   </header>
@@ -56,11 +56,11 @@
     <h3>What is covered, and what is not</h3>
     <p>Every meeting on the Council's calendar for the 2024, 2025 and 2026 sessions was enumerated
       and crawled — <span id="n-meetings">1,740</span> meetings — and every transcript and testimony
-      file attached to them was collected. Two consequences worth understanding:</p>
+      file attached to them was collected. Two consequences:</p>
     <ul>
       <li>Because a bill carries its whole document history forward, documents from hearings before
         2024 turn up attached to later meetings, and they are included. Coverage of those earlier
-        years is <b>incidental, not complete</b>. Do not read the absence of a 2022 hearing as
+        years is <b>incidental and incomplete</b>. Do not read the absence of a 2022 hearing as
         evidence that it did not happen.</li>
       <li>Transcripts are posted weeks and sometimes months after the hearing. The most recent
         hearings will often have written testimony and no transcript yet.</li>
@@ -89,9 +89,9 @@
         excluded; transcripts, which are text-native and small, are all included.</li>
       <li><b>Documents that yielded nothing.</b> <span id="n-excluded">A number of</span> files
         either produced no extractable text — they were scanned — or took so long to parse that
-        they were abandoned. They are counted, not hidden.</li>
+        they were abandoned. They are counted.</li>
     </ul>
-    <p>The practical shape of this: the question-and-answer record is close to complete for the
+    <p>In practice, the question-and-answer record is close to complete for the
       period covered, and the written testimony is partial, weighted towards the submissions that
       were filed as text rather than as scans.</p>
 
@@ -112,7 +112,7 @@
     <p>For written testimony, a passage is roughly a paragraph. Where a packet announces each
       submission with a heading of the form "Testimony of …", it is split on those headings and the
       witness's name is taken from the heading. Where a packet carries no such headings, it is left
-      whole rather than cut at guessed boundaries.</p>
+      whole.</p>
 
     <h3>Topics</h3>
     <p>The Council files its work by committee, and committees do not map onto subjects. Housing
@@ -123,8 +123,7 @@
       Tax</i>, or the plain-language description of a bill.</p>
     <p>The committee half of that is deterministic: a fixed table maps each committee to a topic.
       The subject half is a set of keyword rules that can only ever <i>add</i> a topic, never remove
-      one, which is why a hearing often sits under several. <b>This grouping is ours, not the
-      Council's.</b> It is a way of finding things, not an official classification, and it will put
+      one, which is why a hearing often sits under several. <b>This grouping is ours.</b> It is a way of finding things, and it will put
       the occasional hearing in a place you would not have chosen. The committee filter, underneath
       the topics, is the Council's own filing and is exact.</p>
     <p>Agenda subjects come from the meeting's own item list. Where a hearing held an oversight
@@ -142,7 +141,7 @@
       a real word, which is why <code>about:blank</code> is left alone. A couple of dozen documents
       extracted with no word spaces at all, running whole paragraphs together; their spacing was
       rebuilt by segmenting against the vocabulary of the rest of the corpus, and any run that could
-      not be resolved was left exactly as it was rather than guessed at.</p>
+      not be resolved was left exactly as it was.</p>
     <p><b>The record's errors are not corrected.</b> Stenographers misspell names, witnesses make
       typos, and those stand as written. The one exception is committee <i>labels</i>: a cover page
       typed <i>Committee on Conumser and Worker Protection</i> would otherwise appear as a separate
@@ -173,13 +172,13 @@
       so when that happens.</p>
     <p>The whole vocabulary of the corpus ships as one file, which is what makes the looser matching
       possible without a server. An unquoted word is matched together with its plural and tense
-      variants, but only where those variants are words that actually occur in the corpus — a real
+      variants, but only where those variants are words that occur in the corpus — a conventional
       stemmer would turn <i>housing</i> into <i>hous</i> and produce matches nobody asked for. A word
       that does not occur at all is matched against everything within one or two character edits of
       it, so a misremembered spelling still finds the passage. Both behaviours are reported above the
-      results, so you can always see which words a search actually matched, and both are switched off
+      results, so you can always see which words a search matched, and both are switched off
       by <b>Exact words only</b>.</p>
-    <p>Quotation marks are the precise instrument: inside them there is no variant matching and no
+    <p>Inside quotation marks there is no variant matching and no
       fuzzy matching, only the literal words in the literal order. <code>evict*</code> matches
       everything beginning that way, <code>-word</code> excludes, <code>word~</code> forces a loose
       match, and <code>speaker:</code>, <code>role:</code>, <code>committee:</code>,
@@ -188,7 +187,7 @@
 
     <h3>Asking a question in plain language</h3>
     <p>Type a question rather than keywords and it is read as a question. Nothing here is a language
-      model: it is a set of rules that pick out the parts of a question the record actually knows
+      model: it is a set of rules that pick out the parts of a question the record knows
       about. <i>What did the Mamdani administration say is the reason behind rising assaults?</i>
       becomes administration witnesses, from January 2026 on, about assaults — and the reading is
       printed above the results, where you can override it and search the words literally instead.</p>
@@ -199,11 +198,11 @@
       passage ranks by how much of the question it covers. The second is that one word in a question
       is usually the subject and the rest is grammar — so the most distinctive word anchors the
       search and must appear. Without that anchor a passage containing "because" and "up" outranks
-      the one that is actually about assaults.</p>
+      the one about assaults.</p>
     <p>Where this runs out: the rules only know the synonyms they have been given, and they cannot
       tell that "the bulk of those assaults have been on members of the service" is an explanation
-      while a sentence merely containing the word "because" is not. It finds the passage; the
-      reading is yours.</p>
+      while a sentence merely containing the word "because" is not. It finds the passage, and
+      you have to judge what it says.</p>
     <p>For a synthesised answer rather than a ranked list, take an extract into Google NotebookLM:
       download the results of a search from the front page, or a whole committee from the
       <a href="export.html">packs page</a>. What comes back from NotebookLM is a model's reading of

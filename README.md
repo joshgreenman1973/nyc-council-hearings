@@ -1,7 +1,7 @@
 # What was said at the hearing
 
 Full-text search across New York City Council hearing transcripts and written testimony.
-A result comes back as an exchange — the question, and the answer — not a page number.
+A result comes back as an exchange: the question and the answer.
 
 Live: (pending) · Source: [Legistar](https://legistar.council.nyc.gov/Calendar.aspx)
 
@@ -75,7 +75,7 @@ the Council's own filing and is exact.
 for `ti`, soft hyphens — each checked against a word list first, so `about:blank` survives
 and `informa:on` becomes `information`. A couple of dozen documents extracted with no word
 spaces at all; those are re-segmented against `data/raw/word_freq.json`, built from the
-healthy part of the corpus. A run that cannot be resolved is left alone rather than guessed.
+healthy part of the corpus. A run that cannot be resolved is left alone.
 
 The record's own misspellings are never touched. The single exception is committee *labels*,
 snapped to `data/raw/committees_official.json` on a near-exact match so one stenographer's
