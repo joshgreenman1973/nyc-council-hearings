@@ -4,7 +4,7 @@
    per-project block that may override --ink3 and nothing else.
 
    Fonts (add to <head>):
-   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+   <link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
 
    RULES, so this stays itself:
    - No rounded corners. No box shadows. No gradients. No glass.
@@ -37,8 +37,9 @@
   --ink4:#b07326;   /* amber    — emphasis, warnings, highlighted values */
   --ink5:#2b6f75;   /* teal     — fourth category */
 
-  --sans:'Karla',system-ui,-apple-system,sans-serif;
-  --display:'Archivo',system-ui,sans-serif;
+  --sans:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --title:'Gloock',Georgia,serif;
 
   /* type scale — five sizes, no more */
   --t-micro:9.5px;   /* eyebrow, label, meta */
@@ -94,8 +95,8 @@ button{font-family:inherit}
   .hmark{display:none}
 }
 h1{
-  font-family:var(--display);font-weight:700;margin:0;
-  font-size:var(--t-h1);line-height:1.02;letter-spacing:-.02em;position:relative;z-index:2;
+  font-family:var(--title);font-weight:400;margin:0;
+  font-size:var(--t-h1);line-height:1.02;letter-spacing:0;position:relative;z-index:2;
 }
 .sub{position:relative;z-index:2;margin:9px 0 0;max-width:64ch;
   font-size:var(--t-body);line-height:1.55;color:#333834}
